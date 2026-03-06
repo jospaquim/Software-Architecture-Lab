@@ -1,0 +1,149 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ddd-sales-api
+  namespace: default
+  labels:
+    app: ddd-sales-api
+    tier: backend
+    architecture: ddd
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: ddd-sales-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: ddd-sales-api
+        tier: backend
+        architecture: ddd
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: ddd-sales-api
+        image: your-registry/ddd-sales-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: ddd-sales-secrets
+              key: connection-string
+        - name: Jwt__SecretKey
+          valueFrom:
+            secretKeyRef:
+              name: ddd-sales-secrets
+              key: jwt-secret-key
+        - name: Jwt__Issuer
+          valueFrom:
+            configMapKeyRef:
+              name: ddd-sales-config
+              key: jwt-issuer
+        - name: Jwt__Audience
+          valueFrom:
+            configMapKeyRef:
+              name: ddd-sales-config
+              key: jwt-audience
+
+        # Redis Configuration
+        - name: ConnectionStrings__Redis
+          valueFrom:
+            secretKeyRef:
+              name: ddd-sales-secrets
+              key: redis-connection-string
+
+        # OpenTelemetry Configuration
+        - name: OpenTelemetry__OtlpEndpoint
+          valueFrom:
+            configMapKeyRef:
+              name: ddd-sales-config
+              key: opentelemetry-otlp-endpoint
+
+        # Payment Gateway Configuration
+        - name: PaymentGateway__BaseUrl
+          valueFrom:
+            configMapKeyRef:
+              name: ddd-sales-config
+              key: payment-gateway-url
+
+        # RabbitMQ/MassTransit Configuration
+        - name: RabbitMQ__Host
+          valueFrom:
+            configMapKeyRef:
+              name: ddd-sales-config
+              key: rabbitmq-host
+        - name: RabbitMQ__Port
+          valueFrom:
+            configMapKeyRef:
+              name: ddd-sales-config
+              key: rabbitmq-port
+        - name: RabbitMQ__VHost
+          valueFrom:
+            configMapKeyRef:
+              name: ddd-sales-config
+              key: rabbitmq-vhost
+        - name: RabbitMQ__Username
+          valueFrom:
+            secretKeyRef:
+              name: ddd-sales-secrets
+              key: rabbitmq-username
+        - name: RabbitMQ__Password
+          valueFrom:
+            secretKeyRef:
+              name: ddd-sales-secrets
+              key: rabbitmq-password
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,131 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cleanarchitecture-api
+  namespace: default
+  labels:
+    app: cleanarchitecture-api
+    tier: backend
+    architecture: clean
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: cleanarchitecture-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: cleanarchitecture-api
+        tier: backend
+        architecture: clean
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: cleanarchitecture-api
+        image: your-registry/cleanarchitecture-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+
+        # Database Configuration
+        - name: DatabaseProvider
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: database-provider
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: cleanarchitecture-secrets
+              key: connection-string
+
+        # Redis Configuration
+        - name: ConnectionStrings__Redis
+          valueFrom:
+            secretKeyRef:
+              name: cleanarchitecture-secrets
+              key: redis-connection-string
+
+        # JWT Configuration
+        - name: Jwt__SecretKey
+          valueFrom:
+            secretKeyRef:
+              name: cleanarchitecture-secrets
+              key: jwt-secret-key
+        - name: Jwt__Issuer
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: jwt-issuer
+        - name: Jwt__Audience
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: jwt-audience
+        - name: Jwt__ExpiryMinutes
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: jwt-expiry-minutes
+        - name: Jwt__RefreshExpiryDays
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: jwt-refresh-expiry-days
+
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: eda-api-pdb
+  namespace: default
+  labels:
+    app: eda-api
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: eda-api

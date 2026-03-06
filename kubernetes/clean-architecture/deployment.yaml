@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cleanarchitecture-api
+  labels:
+    app: cleanarchitecture-api
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cleanarchitecture-api
+  template:
+    metadata:
+      labels:
+        app: cleanarchitecture-api
+        version: v1
+    spec:
+      containers:
+      - name: api
+        image: cleanarchitecture-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+        - name: DatabaseProvider
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: database-provider
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: cleanarchitecture-secrets
+              key: connection-string
+        - name: Jwt__SecretKey
+          valueFrom:
+            secretKeyRef:
+              name: cleanarchitecture-secrets
+              key: jwt-secret
+        - name: Jwt__Issuer
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: jwt-issuer
+        - name: Jwt__Audience
+          valueFrom:
+            configMapKeyRef:
+              name: cleanarchitecture-config
+              key: jwt-audience
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always

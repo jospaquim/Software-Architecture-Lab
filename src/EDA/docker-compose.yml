@@ -1,0 +1,226 @@
+version: '3.8'
+
+services:
+  # EDA API
+  eda-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eda-api
+    ports:
+      - "5200:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+
+      # Kafka Configuration (Event Store)
+      - Kafka__BootstrapServers=kafka:9092
+      - Kafka__Topic=order-events
+      - Kafka__ConsumerGroup=eda-api-consumer-group
+
+      # Redis Configuration (Read Models)
+      - Redis__ConnectionString=redis:6379,password=,ssl=false,abortConnect=false
+
+      # JWT Configuration
+      - Jwt__SecretKey=YourSuperSecretKeyForEDAEventDrivenArchitecture123!
+      - Jwt__Issuer=EDA.API
+      - Jwt__Audience=EDA.Client
+      - Jwt__ExpiryMinutes=60
+      - Jwt__RefreshExpiryDays=7
+
+      # Event Sourcing Configuration
+      - EventStore__RetentionDays=365
+      - EventStore__SnapshotInterval=100
+
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - eda-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # Zookeeper (required for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: eda-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - eda-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Kafka (Event Store)
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: eda-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # Listeners
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Topic Configuration
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+
+      # Log Configuration
+      KAFKA_LOG_RETENTION_HOURS: 168 # 7 days
+      KAFKA_LOG_RETENTION_BYTES: 1073741824 # 1GB
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+
+      # Performance
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+      # Misc
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: "false"
+      KAFKA_JMX_PORT: 9997
+      KAFKA_JMX_HOSTNAME: kafka
+
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - eda-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # Kafka UI (for monitoring and debugging)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: eda-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: eda-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      DYNAMIC_CONFIG_ENABLED: "true"
+    networks:
+      - eda-network
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # Redis (Read Models)
+  redis:
+    image: redis:7-alpine
+    container_name: eda-redis
+    ports:
+      - "6381:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - eda-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Commander (Redis UI - Optional)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: eda-redis-commander
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8091:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    networks:
+      - eda-network
+    restart: unless-stopped
+    profiles:
+      - tools
+
+  # Kafka Initialization (Create Topics)
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: eda-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - eda-network
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # Wait for Kafka to be ready
+      echo 'Waiting for Kafka to be ready...'
+      cub kafka-ready -b kafka:9092 1 30
+
+      # Create topics
+      echo 'Creating topics...'
+
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic order-events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic customer-events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 3 --replication-factor 1 --topic product-events
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic event-snapshots
+
+      # Configure topic retention (365 days = 8760 hours)
+      kafka-configs --bootstrap-server kafka:9092 --entity-type topics --entity-name order-events --alter --add-config retention.ms=31536000000
+
+      echo 'Topics created successfully!'
+      kafka-topics --list --bootstrap-server kafka:9092
+      "
+    profiles:
+      - init
+
+networks:
+  eda-network:
+    driver: bridge
+
+volumes:
+  zookeeper-data:
+    driver: local
+  zookeeper-logs:
+    driver: local
+  kafka-data:
+    driver: local
+  redis-data:
+    driver: local

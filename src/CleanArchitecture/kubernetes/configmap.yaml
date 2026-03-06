@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cleanarchitecture-config
+  namespace: default
+  labels:
+    app: cleanarchitecture-api
+data:
+  # Database Configuration
+  database-provider: "SqlServer"
+
+  # JWT Configuration
+  jwt-issuer: "https://cleanarchitecture-api.yourdomain.com"
+  jwt-audience: "https://cleanarchitecture-api.yourdomain.com"
+  jwt-expiry-minutes: "60"
+  jwt-refresh-expiry-days: "7"
+
+  # Rate Limiting Configuration
+  rate-limit-window-minutes: "1"
+  rate-limit-permit-limit: "100"
+  rate-limit-queue-limit: "10"
+
+  # CORS Configuration
+  cors-allowed-origins: "https://yourdomain.com,https://www.yourdomain.com"
+
+  # Logging Configuration
+  logging-level: "Information"
+  logging-console-enabled: "true"

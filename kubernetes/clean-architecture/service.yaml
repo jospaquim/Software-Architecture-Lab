@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cleanarchitecture-api
+  labels:
+    app: cleanarchitecture-api
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: cleanarchitecture-api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cleanarchitecture-api-internal
+  labels:
+    app: cleanarchitecture-api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: cleanarchitecture-api

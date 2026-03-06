@@ -1,0 +1,322 @@
+version: '3.8'
+
+# Docker Compose Maestro - Todas las Arquitecturas
+#
+# Uso:
+#   docker-compose up -d                    # Levanta todas las arquitecturas
+#   docker-compose --profile clean up -d    # Solo Clean Architecture
+#   docker-compose --profile ddd up -d      # Solo DDD
+#   docker-compose --profile eda up -d      # Solo EDA (con Kafka)
+#
+# Puertos:
+#   Clean Architecture: 5001
+#   DDD:                5100
+#   EDA:                5200
+
+services:
+  # ==========================================
+  # CLEAN ARCHITECTURE
+  # ==========================================
+
+  cleanarchitecture-api:
+    build:
+      context: ./src/CleanArchitecture
+      dockerfile: Dockerfile
+    container_name: cleanarchitecture-api
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=cleanarch-sqlserver;Database=CleanArchitectureDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true
+      - ConnectionStrings__Redis=cleanarch-redis:6379
+      - Jwt__SecretKey=YourSuperSecretKeyThatIsAtLeast32CharactersLong!
+      - Jwt__Issuer=CleanArchitectureAPI
+      - Jwt__Audience=CleanArchitectureClient
+      - Jwt__ExpiryMinutes=60
+    depends_on:
+      cleanarch-sqlserver:
+        condition: service_healthy
+      cleanarch-redis:
+        condition: service_healthy
+    networks:
+      - cleanarch-network
+    profiles:
+      - clean
+      - all
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  cleanarch-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cleanarch-sqlserver
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_PID=Developer
+    volumes:
+      - cleanarch-sqlserver-data:/var/opt/mssql
+    networks:
+      - cleanarch-network
+    profiles:
+      - clean
+      - all
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  cleanarch-redis:
+    image: redis:7-alpine
+    container_name: cleanarch-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - cleanarch-redis-data:/data
+    networks:
+      - cleanarch-network
+    profiles:
+      - clean
+      - all
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # ==========================================
+  # DDD (Domain-Driven Design)
+  # ==========================================
+
+  ddd-sales-api:
+    build:
+      context: ./src/DDD/Sales
+      dockerfile: Dockerfile
+    container_name: ddd-sales-api
+    ports:
+      - "5100:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Server=ddd-sqlserver;Database=DDD_SalesDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true
+      - ConnectionStrings__Redis=ddd-redis:6379
+      - Jwt__SecretKey=YourSuperSecretKeyThatIsAtLeast32CharactersLongForDDD!
+      - Jwt__Issuer=DDD.Sales.API
+      - Jwt__Audience=DDD.Sales.Client
+    depends_on:
+      ddd-sqlserver:
+        condition: service_healthy
+      ddd-redis:
+        condition: service_healthy
+    networks:
+      - ddd-network
+    profiles:
+      - ddd
+      - all
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  ddd-sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ddd-sqlserver
+    ports:
+      - "1434:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong@Passw0rd
+      - MSSQL_PID=Developer
+    volumes:
+      - ddd-sqlserver-data:/var/opt/mssql
+    networks:
+      - ddd-network
+    profiles:
+      - ddd
+      - all
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "YourStrong@Passw0rd" -Q "SELECT 1" || exit 1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  ddd-redis:
+    image: redis:7-alpine
+    container_name: ddd-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ddd-redis-data:/data
+    networks:
+      - ddd-network
+    profiles:
+      - ddd
+      - all
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # ==========================================
+  # EDA (Event-Driven Architecture)
+  # ==========================================
+
+  eda-api:
+    build:
+      context: ./src/EDA
+      dockerfile: Dockerfile
+    container_name: eda-api
+    ports:
+      - "5200:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Kafka__BootstrapServers=kafka:9092
+      - Kafka__Topic=order-events
+      - Kafka__ConsumerGroup=eda-api-consumer-group
+      - Redis__ConnectionString=eda-redis:6379
+      - Jwt__SecretKey=YourSuperSecretKeyForEDAEventDrivenArchitecture123!
+      - Jwt__Issuer=EDA.API
+      - Jwt__Audience=EDA.Client
+    depends_on:
+      kafka:
+        condition: service_healthy
+      eda-redis:
+        condition: service_healthy
+    networks:
+      - eda-network
+    profiles:
+      - eda
+      - all
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: eda-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - eda-zookeeper-data:/var/lib/zookeeper/data
+      - eda-zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - eda-network
+    profiles:
+      - eda
+      - all
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: eda-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    volumes:
+      - eda-kafka-data:/var/lib/kafka/data
+    networks:
+      - eda-network
+    profiles:
+      - eda
+      - all
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  eda-redis:
+    image: redis:7-alpine
+    container_name: eda-redis
+    ports:
+      - "6381:6379"
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - eda-redis-data:/data
+    networks:
+      - eda-network
+    profiles:
+      - eda
+      - all
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  cleanarch-network:
+    driver: bridge
+  ddd-network:
+    driver: bridge
+  eda-network:
+    driver: bridge
+
+volumes:
+  cleanarch-sqlserver-data:
+    driver: local
+  cleanarch-redis-data:
+    driver: local
+  ddd-sqlserver-data:
+    driver: local
+  ddd-redis-data:
+    driver: local
+  eda-zookeeper-data:
+    driver: local
+  eda-zookeeper-logs:
+    driver: local
+  eda-kafka-data:
+    driver: local
+  eda-redis-data:
+    driver: local

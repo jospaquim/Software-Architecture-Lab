@@ -1,0 +1,305 @@
+{
+  "dashboard": {
+    "title": "ASP.NET Core API Metrics - Software Architecture",
+    "tags": ["aspnet", "dotnet", "api", "software-architecture"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Request Rate (req/s)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(http_server_request_duration_seconds_count{service=~\"clean-architecture|ddd-sales|eda\"}[1m])",
+            "legendFormat": "{{service}} - {{method}} {{route}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10
+            },
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "title": "Response Time (P50, P90, P99)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_server_request_duration_seconds_bucket{service=~\"clean-architecture|ddd-sales|eda\"}[5m])) by (le, service))",
+            "legendFormat": "{{service}} - P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.90, sum(rate(http_server_request_duration_seconds_bucket{service=~\"clean-architecture|ddd-sales|eda\"}[5m])) by (le, service))",
+            "legendFormat": "{{service}} - P90",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_server_request_duration_seconds_bucket{service=~\"clean-architecture|ddd-sales|eda\"}[5m])) by (le, service))",
+            "legendFormat": "{{service}} - P99",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 0
+            },
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "title": "HTTP Status Codes",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_request_duration_seconds_count{service=~\"clean-architecture|ddd-sales|eda\"}[1m])) by (service, http_response_status_code)",
+            "legendFormat": "{{service}} - {{http_response_status_code}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10,
+              "stacking": {
+                "mode": "normal"
+              }
+            },
+            "unit": "reqps",
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        }
+      },
+      {
+        "title": "Error Rate (%)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 8, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "(sum(rate(http_server_request_duration_seconds_count{service=~\"clean-architecture|ddd-sales|eda\",http_response_status_code=~\"5..\"}[5m])) / sum(rate(http_server_request_duration_seconds_count{service=~\"clean-architecture|ddd-sales|eda\"}[5m]))) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Total Requests (last 5m)",
+        "type": "stat",
+        "gridPos": {"x": 16, "y": 8, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(increase(http_server_request_duration_seconds_count{service=~\"clean-architecture|ddd-sales|eda\"}[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "blue"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Active Connections",
+        "type": "stat",
+        "gridPos": {"x": 20, "y": 8, "w": 4, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(http_server_active_requests{service=~\"clean-architecture|ddd-sales|eda\"})",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0,
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 100, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": ".NET Runtime - GC Collections",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 16, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(dotnet_gc_collection_count_total{service=~\"clean-architecture|ddd-sales|eda\"}[1m])",
+            "legendFormat": "{{service}} - Gen{{generation}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            }
+          }
+        }
+      },
+      {
+        "title": ".NET Runtime - Memory Usage (MB)",
+        "type": "timeseries",
+        "gridPos": {"x": 8, "y": 16, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "dotnet_gc_memory_total_available_bytes{service=~\"clean-architecture|ddd-sales|eda\"} / 1024 / 1024",
+            "legendFormat": "{{service}} - Available Memory",
+            "refId": "A"
+          },
+          {
+            "expr": "process_working_set_bytes{service=~\"clean-architecture|ddd-sales|eda\"} / 1024 / 1024",
+            "legendFormat": "{{service}} - Working Set",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "decmbytes",
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 10
+            }
+          }
+        }
+      },
+      {
+        "title": "CPU Usage (%)",
+        "type": "timeseries",
+        "gridPos": {"x": 16, "y": 16, "w": 8, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(process_cpu_seconds_total{service=~\"clean-architecture|ddd-sales|eda\"}[1m]) * 100",
+            "legendFormat": "{{service}} - CPU",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "max": 100,
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth",
+              "fillOpacity": 20
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 80, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Request Duration Heatmap",
+        "type": "heatmap",
+        "gridPos": {"x": 0, "y": 24, "w": 24, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(http_server_request_duration_seconds_bucket{service=~\"clean-architecture|ddd-sales|eda\"}[1m])) by (le)",
+            "format": "heatmap",
+            "legendFormat": "{{le}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "calculate": false,
+          "calculation": {},
+          "cellGap": 2,
+          "cellValues": {},
+          "color": {
+            "exponent": 0.5,
+            "fill": "dark-orange",
+            "mode": "scheme",
+            "reverse": false,
+            "scale": "exponential",
+            "scheme": "Spectral",
+            "steps": 128
+          },
+          "exemplars": {
+            "color": "rgba(255,0,255,0.7)"
+          },
+          "filterValues": {
+            "le": 1e-9
+          },
+          "legend": {
+            "show": true
+          },
+          "rowsFrame": {
+            "layout": "auto"
+          },
+          "tooltip": {
+            "show": true,
+            "yHistogram": false
+          },
+          "yAxis": {
+            "axisPlacement": "left",
+            "reverse": false,
+            "unit": "s"
+          }
+        }
+      }
+    ]
+  }
+}

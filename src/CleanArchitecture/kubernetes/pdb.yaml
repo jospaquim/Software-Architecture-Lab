@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: cleanarchitecture-api-pdb
+  namespace: default
+  labels:
+    app: cleanarchitecture-api
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: cleanarchitecture-api

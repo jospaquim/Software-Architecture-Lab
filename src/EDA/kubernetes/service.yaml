@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: eda-api
+  namespace: default
+  labels:
+    app: eda-api
+    tier: backend
+    architecture: eda
+spec:
+  type: ClusterIP
+  selector:
+    app: eda-api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  sessionAffinity: None

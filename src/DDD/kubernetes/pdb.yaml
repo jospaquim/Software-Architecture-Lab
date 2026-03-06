@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ddd-sales-api-pdb
+  namespace: default
+  labels:
+    app: ddd-sales-api
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: ddd-sales-api

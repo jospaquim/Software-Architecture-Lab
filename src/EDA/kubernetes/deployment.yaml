@@ -1,0 +1,147 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eda-api
+  namespace: default
+  labels:
+    app: eda-api
+    tier: backend
+    architecture: eda
+spec:
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: eda-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: eda-api
+        tier: backend
+        architecture: eda
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: eda-api
+        image: your-registry/eda-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_URLS
+          value: "http://+:8080"
+
+        # Kafka Configuration
+        - name: Kafka__BootstrapServers
+          valueFrom:
+            configMapKeyRef:
+              name: eda-config
+              key: kafka-bootstrap-servers
+        - name: Kafka__Topic
+          valueFrom:
+            configMapKeyRef:
+              name: eda-config
+              key: kafka-topic
+        - name: Kafka__ConsumerGroup
+          valueFrom:
+            configMapKeyRef:
+              name: eda-config
+              key: kafka-consumer-group
+
+        # Redis Configuration
+        - name: Redis__ConnectionString
+          valueFrom:
+            secretKeyRef:
+              name: eda-secrets
+              key: redis-connection-string
+
+        # JWT Configuration
+        - name: Jwt__SecretKey
+          valueFrom:
+            secretKeyRef:
+              name: eda-secrets
+              key: jwt-secret-key
+        - name: Jwt__Issuer
+          valueFrom:
+            configMapKeyRef:
+              name: eda-config
+              key: jwt-issuer
+        - name: Jwt__Audience
+          valueFrom:
+            configMapKeyRef:
+              name: eda-config
+              key: jwt-audience
+
+        # Event Store Configuration (if using dedicated event store)
+        - name: EventStore__ConnectionString
+          valueFrom:
+            secretKeyRef:
+              name: eda-secrets
+              key: eventstore-connection-string
+
+        # OpenTelemetry Configuration
+        - name: OpenTelemetry__OtlpEndpoint
+          valueFrom:
+            configMapKeyRef:
+              name: eda-config
+              key: opentelemetry-otlp-endpoint
+
+        # Notification Service Configuration
+        - name: NotificationService__BaseUrl
+          valueFrom:
+            configMapKeyRef:
+              name: eda-config
+              key: notification-service-url
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 0
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 30
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

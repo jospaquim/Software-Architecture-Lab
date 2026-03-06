@@ -1,0 +1,118 @@
+# Prometheus Configuration for Software Architecture Project
+# This file configures Prometheus to scrape metrics from the 3 APIs
+
+global:
+  scrape_interval: 15s       # How frequently to scrape targets
+  evaluation_interval: 15s   # How frequently to evaluate rules
+  external_labels:
+    cluster: 'software-architecture'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Rule files (optional - for alerting rules)
+# rule_files:
+#   - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # ============================================
+  # PROMETHEUS SELF MONITORING
+  # ============================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          component: 'monitoring'
+
+  # ============================================
+  # NODE EXPORTER - System Metrics
+  # ============================================
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          component: 'system-metrics'
+
+  # ============================================
+  # CLEAN ARCHITECTURE API
+  # ============================================
+  - job_name: 'clean-architecture-api'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['clean-api:8080']
+        labels:
+          service: 'clean-architecture'
+          architecture: 'clean'
+          component: 'api'
+          environment: 'development'
+    # Relabeling for better metric organization
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'clean-api'
+
+  # ============================================
+  # DDD SALES API
+  # ============================================
+  - job_name: 'ddd-sales-api'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ddd-api:8080']
+        labels:
+          service: 'ddd-sales'
+          architecture: 'ddd'
+          component: 'api'
+          bounded_context: 'sales'
+          environment: 'development'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'ddd-api'
+
+  # ============================================
+  # EDA API (Event-Driven Architecture)
+  # ============================================
+  - job_name: 'eda-api'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['eda-api:8080']
+        labels:
+          service: 'eda'
+          architecture: 'event-driven'
+          component: 'api'
+          pattern: 'event-sourcing-cqrs'
+          environment: 'development'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'eda-api'
+
+  # ============================================
+  # JAEGER METRICS (Optional)
+  # ============================================
+  - job_name: 'jaeger'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['jaeger:14269']
+        labels:
+          service: 'jaeger'
+          component: 'tracing'
+
+# Remote write configuration (optional - for long-term storage)
+# remote_write:
+#   - url: "http://prometheus-remote-storage:9090/api/v1/write"
+
+# Remote read configuration (optional)
+# remote_read:
+#   - url: "http://prometheus-remote-storage:9090/api/v1/read"

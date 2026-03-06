@@ -1,0 +1,275 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # Job 1: Build and Test Clean Architecture
+  clean-architecture:
+    name: Clean Architecture - Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore src/CleanArchitecture/CleanArchitecture.sln
+
+    - name: Build
+      run: dotnet build src/CleanArchitecture/CleanArchitecture.sln --configuration Release --no-restore
+
+    - name: Run Unit Tests
+      run: dotnet test tests/CleanArchitecture.Domain.Tests/CleanArchitecture.Domain.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-domain.trx"
+
+    - name: Run Application Tests
+      run: dotnet test tests/CleanArchitecture.Application.Tests/CleanArchitecture.Application.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-application.trx"
+
+    - name: Run Integration Tests
+      run: dotnet test tests/CleanArchitecture.IntegrationTests/CleanArchitecture.IntegrationTests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-integration.trx"
+
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Clean Architecture Tests
+        path: '**/test-results-*.trx'
+        reporter: dotnet-trx
+
+    - name: Build Docker Image
+      run: |
+        cd src/CleanArchitecture
+        docker build -t cleanarchitecture-api:${{ github.sha }} .
+
+    - name: Save Docker Image
+      run: |
+        docker save cleanarchitecture-api:${{ github.sha }} | gzip > clean-arch-image.tar.gz
+
+    - name: Upload Docker Image Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: clean-architecture-image
+        path: clean-arch-image.tar.gz
+        retention-days: 7
+
+  # Job 2: Build and Test DDD
+  ddd:
+    name: DDD - Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore src/DDD/DDD.sln
+
+    - name: Build
+      run: dotnet build src/DDD/DDD.sln --configuration Release --no-restore
+
+    - name: Run Domain Tests
+      run: dotnet test tests/DDD.Sales.Domain.Tests/DDD.Sales.Domain.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-domain.trx"
+
+    - name: Run Application Tests
+      run: dotnet test tests/DDD.Sales.Application.Tests/DDD.Sales.Application.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-application.trx"
+
+    - name: Run Integration Tests
+      run: dotnet test tests/DDD.Sales.IntegrationTests/DDD.Sales.IntegrationTests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-integration.trx"
+
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: DDD Tests
+        path: '**/test-results-*.trx'
+        reporter: dotnet-trx
+
+    - name: Build Docker Image
+      run: |
+        cd src/DDD/Sales
+        docker build -t ddd-sales-api:${{ github.sha }} .
+
+    - name: Save Docker Image
+      run: |
+        docker save ddd-sales-api:${{ github.sha }} | gzip > ddd-image.tar.gz
+
+    - name: Upload Docker Image Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ddd-image
+        path: ddd-image.tar.gz
+        retention-days: 7
+
+  # Job 3: Build and Test EDA
+  eda:
+    name: EDA - Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore src/EDA/EDA.sln
+
+    - name: Build
+      run: dotnet build src/EDA/EDA.sln --configuration Release --no-restore
+
+    - name: Run Unit Tests
+      run: dotnet test tests/EDA.Tests/EDA.Tests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-unit.trx"
+
+    - name: Run Integration Tests
+      run: dotnet test tests/EDA.IntegrationTests/EDA.IntegrationTests.csproj --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results-integration.trx"
+
+    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: EDA Tests
+        path: '**/test-results-*.trx'
+        reporter: dotnet-trx
+
+    - name: Build Docker Image
+      run: |
+        cd src/EDA
+        docker build -t eda-api:${{ github.sha }} .
+
+    - name: Save Docker Image
+      run: |
+        docker save eda-api:${{ github.sha }} | gzip > eda-image.tar.gz
+
+    - name: Upload Docker Image Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: eda-image
+        path: eda-image.tar.gz
+        retention-days: 7
+
+  # Job 4: Code Quality & Security
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Install dotnet format
+      run: dotnet tool install -g dotnet-format
+
+    - name: Check code formatting
+      run: dotnet format --verify-no-changes --verbosity diagnostic src/CleanArchitecture/CleanArchitecture.sln || true
+
+    - name: Dependency Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'SoftwareArchitecture'
+        path: '.'
+        format: 'HTML'
+
+    - name: Upload Dependency Check Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-check-report
+        path: reports/
+        retention-days: 30
+
+  # Job 5: Docker Compose Integration Tests
+  docker-compose-tests:
+    name: Docker Compose Integration Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        architecture: [CleanArchitecture, DDD, EDA]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Start Docker Compose - ${{ matrix.architecture }}
+      run: |
+        cd src/${{ matrix.architecture }}
+        docker-compose up -d
+
+    - name: Wait for services to be healthy
+      run: |
+        echo "Waiting for services to start..."
+        sleep 30
+
+    - name: Check service health
+      run: |
+        cd src/${{ matrix.architecture }}
+        docker-compose ps
+
+    - name: Test API health endpoint
+      run: |
+        if [ "${{ matrix.architecture }}" = "CleanArchitecture" ]; then
+          curl -f http://localhost:5001/health || exit 1
+        elif [ "${{ matrix.architecture }}" = "DDD" ]; then
+          curl -f http://localhost:5100/health || exit 1
+        elif [ "${{ matrix.architecture }}" = "EDA" ]; then
+          curl -f http://localhost:5200/health || exit 1
+        fi
+
+    - name: Shutdown Docker Compose
+      if: always()
+      run: |
+        cd src/${{ matrix.architecture }}
+        docker-compose down -v
+
+  # Job 6: Summary Report
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [clean-architecture, ddd, eda, code-quality, docker-compose-tests]
+    if: always()
+
+    steps:
+    - name: Generate Summary
+      run: |
+        echo "## CI/CD Pipeline Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+        echo "- Clean Architecture: ${{ needs.clean-architecture.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- DDD: ${{ needs.ddd.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- EDA: ${{ needs.eda.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Code Quality: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker Compose Tests: ${{ needs.docker-compose-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Artifacts Generated" >> $GITHUB_STEP_SUMMARY
+        echo "- Clean Architecture Docker Image" >> $GITHUB_STEP_SUMMARY
+        echo "- DDD Docker Image" >> $GITHUB_STEP_SUMMARY
+        echo "- EDA Docker Image" >> $GITHUB_STEP_SUMMARY
+        echo "- Test Reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Code Quality Reports" >> $GITHUB_STEP_SUMMARY
