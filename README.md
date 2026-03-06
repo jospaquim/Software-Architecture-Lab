@@ -5,122 +5,122 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-Ready-326CE5?logo=kubernetes)
 
-Repositorio de arquitecturas de software empresariales implementadas como boilerplates listos para producción. Este repositorio es tu guía completa para entender, comparar e implementar diferentes patrones arquitectónicos en proyectos reales.
+Enterprise software architecture repository implemented as production-ready boilerplates. This repository is your comprehensive guide to understanding, comparing, and implementing different architectural patterns in real-world projects.
 
-##  Arquitecturas Incluidas
+## Included Architectures
 
 ### 1. [Clean Architecture](./docs/clean-architecture/README.md)
-Arquitectura basada en la separación de responsabilidades en capas concéntricas, priorizando la independencia de frameworks y bases de datos.
+Architecture based on the separation of concerns in concentric layers, prioritizing independence from frameworks and databases.
 
-**Casos de uso ideales:**
-- APIs RESTful empresariales
-- Microservicios con lógica de negocio compleja
-- Aplicaciones que requieren alta testabilidad
-- Proyectos de larga duración con equipos grandes
+**Ideal use cases:**
+- Enterprise RESTful APIs
+- Microservices with complex business logic
+- Applications requiring high testability
+- Long-term projects with large teams
 
 ### 2. [Domain-Driven Design (DDD)](./docs/ddd/README.md)
-Arquitectura centrada en el dominio del negocio, usando patrones tácticos y estratégicos para modelar sistemas complejos.
+Architecture centered on the business domain, using tactical and strategic patterns to model complex systems.
 
-**Casos de uso ideales:**
-- Sistemas con lógica de negocio muy compleja
-- E-commerce, finanzas, seguros
-- Aplicaciones con múltiples bounded contexts
-- Sistemas que evolucionan constantemente
+**Ideal use cases:**
+- Systems with highly complex business logic
+- E-commerce, finance, insurance
+- Applications with multiple bounded contexts
+- Constantly evolving systems
 
 ### 3. [Event-Driven Architecture (EDA)](./docs/eda/README.md)
-Arquitectura basada en eventos para sistemas distribuidos y asíncronos de alta escalabilidad.
+Event-based architecture for highly scalable distributed and asynchronous systems.
 
-**Casos de uso ideales:**
-- Sistemas de procesamiento en tiempo real
-- Microservicios desacoplados
-- Aplicaciones IoT
-- Sistemas de notificaciones y mensajería
+**Ideal use cases:**
+- Real-time processing systems
+- Decoupled microservices
+- IoT applications
+- Notification and messaging systems
 
-## ️ Estructura del Repositorio
+## Repository Structure
 
 ```
 SoftwareArchitecture/
-├── docs/                           # Documentación detallada
-│   ├── clean-architecture/         # Guía Clean Architecture
-│   ├── ddd/                        # Guía DDD
-│   ├── eda/                        # Guía EDA
+├── docs/                           # Detailed documentation
+│   ├── clean-architecture/         # Clean Architecture Guide
+│   ├── ddd/                        # DDD Guide
+│   ├── eda/                        # EDA Guide
 │   └── principles/                 # SOLID, Clean Code
-├── src/                            # Implementaciones
-│   ├── CleanArchitecture/          # Proyecto Clean Architecture
-│   │   ├── API/                    # Capa de presentación
-│   │   ├── Application/            # Casos de uso
-│   │   ├── Domain/                 # Entidades y lógica de negocio
-│   │   ├── Infrastructure/         # Implementaciones externas
-│   │   └── Tests/                  # Tests unitarios e integración
-│   ├── DDD/                        # Proyecto DDD
+├── src/                            # Implementations
+│   ├── CleanArchitecture/          # Clean Architecture Project
+│   │   ├── API/                    # Presentation layer
+│   │   ├── Application/            # Use cases
+│   │   ├── Domain/                 # Entities and business logic
+│   │   ├── Infrastructure/         # External implementations
+│   │   └── Tests/                  # Unit and integration tests
+│   ├── DDD/                        # DDD Project
 │   │   ├── API/
 │   │   ├── Application/
 │   │   ├── Domain/
 │   │   ├── Infrastructure/
 │   │   └── Tests/
-│   └── EDA/                        # Proyecto EDA
+│   └── EDA/                        # EDA Project
 │       ├── API/
 │       ├── EventHandlers/
 │       ├── Domain/
 │       ├── Infrastructure/
 │       └── Tests/
-├── frontend/                       # Ejemplos frontend
-│   ├── angular-example/            # Cliente Angular
-│   └── nextjs-example/             # Cliente Next.js
+├── frontend/                       # Frontend examples
+│   ├── angular-example/            # Angular client
+│   └── nextjs-example/             # Next.js client
 ├── docker/                         # Dockerfiles
-└── kubernetes/                     # Manifiestos K8s
+└── kubernetes/                     # K8s Manifests
 ```
 
-##  Características Principales
+## Core Features
 
-###  Seguridad
-- **Autenticación JWT** con refresh tokens
-- **Integración Keycloak** para SSO empresarial
-- **Auth0** como alternativa cloud
-- **Rate Limiting** para protección contra abuso
-- **CORS** configurado correctamente
-- **HTTPS** obligatorio en producción
-- **Secrets management** con variables de entorno
+### Security
+- **JWT Authentication** with refresh tokens
+- **Keycloak Integration** for enterprise SSO
+- **Auth0** as a cloud alternative
+- **Rate Limiting** for abuse protection
+- **CORS** properly configured
+- **HTTPS** enforced in production
+- **Secrets management** with environment variables
 
-###  API
-- **Swagger/OpenAPI 3.0** con documentación completa
-- **Versionamiento** de APIs (v1, v2)
-- **Paginación, filtrado y ordenamiento** estándar
-- **Validación** con FluentValidation
-- **Manejo de errores** centralizado con Problem Details (RFC 7807)
-- **Health checks** para monitoreo
+### API
+- **Swagger/OpenAPI 3.0** with complete documentation
+- **API Versioning** (v1, v2)
+- **Standard pagination, filtering, and sorting**
+- **Validation** using FluentValidation
+- **Centralized error handling** with Problem Details (RFC 7807)
+- **Health checks** for monitoring
 
-###  Bases de Datos
-- **SQL Server** con Entity Framework Core
-- **PostgreSQL** con soporte completo
-- **Migraciones** automatizadas
-- **Repository Pattern** implementado
-- **Unit of Work** para transacciones
-- **Database seeding** para desarrollo
+### Databases
+- **SQL Server** with Entity Framework Core
+- **PostgreSQL** with full support
+- **Automated migrations**
+- **Repository Pattern** implemented
+- **Unit of Work** for transactions
+- **Database seeding** for development
 
-###  Cloud Ready
-- **Docker** multi-stage builds optimizados
-- **Kubernetes** manifiestos (Deployments, Services, ConfigMaps, Secrets)
-- **Health checks** para orquestadores
-- **Logs estructurados** con Serilog
-- **Métricas** con Prometheus
-- **Tracing distribuido** con OpenTelemetry
+### Cloud Ready
+- **Docker** optimized multi-stage builds
+- **Kubernetes** manifests (Deployments, Services, ConfigMaps, Secrets)
+- **Health checks** for orchestrators
+- **Structured logging** with Serilog
+- **Metrics** with Prometheus
+- **Distributed tracing** with OpenTelemetry
 
-###  Principios y Patrones
-- **SOLID** principles aplicados
-- **Clean Code** en toda la base de código
+### Principles and Patterns
+- **SOLID** principles applied
+- **Clean Code** throughout the codebase
 - **Design Patterns** (Repository, Factory, Strategy, CQRS, Mediator)
-- **Dependency Injection** nativo de .NET
-- **Async/Await** para operaciones I/O
+- **Dependency Injection** native to .NET
+- **Async/Await** for I/O operations
 
-###  Testing
-- **Unit Tests** con xUnit
-- **Integration Tests** con WebApplicationFactory
-- **Test Containers** para bases de datos
-- **Mocking** con Moq
-- **Cobertura de código** > 80%
+### Testing
+- **Unit Tests** with xUnit
+- **Integration Tests** with WebApplicationFactory
+- **Test Containers** for databases
+- **Mocking** with Moq
+- **Code Coverage** > 80%
 
-## ️ Stack Tecnológico
+## Tech Stack
 
 ### Backend
 - **.NET 8.0** (LTS)
@@ -136,17 +136,17 @@ SoftwareArchitecture/
 - **Angular 17+** (TypeScript)
 - **Next.js 14+** (React, TypeScript)
 - **Tailwind CSS**
-- **Axios/Fetch** para llamadas API
+- **Axios/Fetch** for API calls
 
-### Bases de Datos
+### Databases
 - **SQL Server 2022**
 - **PostgreSQL 16**
 
-### Mensajería (EDA)
+### Messaging (EDA)
 - **RabbitMQ**
 - **MassTransit** (.NET)
 
-### Autenticación
+### Authentication
 - **JWT (JSON Web Tokens)**
 - **Keycloak** (Open Source)
 - **Auth0** (SaaS)
@@ -156,21 +156,21 @@ SoftwareArchitecture/
 - **Kubernetes**
 - **GitHub Actions** (CI/CD)
 
-##  Quick Start
+## Quick Start
 
-### Prerequisitos
+### Prerequisites
 ```bash
-# Instalar .NET 8 SDK
-dotnet --version  # Debe ser 8.0+
+# Install .NET 8 SDK
+dotnet --version  # Must be 8.0+
 
-# Instalar Docker
+# Install Docker
 docker --version
 
-# Instalar Docker Compose
+# Install Docker Compose
 docker-compose --version
 ```
 
-### Opción 1: Ejecutar con Docker Compose (Recomendado)
+### Option 1: Run with Docker Compose (Recommended)
 
 ```bash
 # Clean Architecture
@@ -186,88 +186,88 @@ cd src/EDA
 docker-compose up
 ```
 
-La API estará disponible en `http://localhost:5000` y Swagger en `http://localhost:5000/swagger`
+The API will be available at `http://localhost:5000` and Swagger at `http://localhost:5000/swagger`
 
-### Opción 2: Ejecutar Localmente
+### Option 2: Run Locally
 
 ```bash
-# 1. Clonar el repositorio
+# 1. Clone the repository
 git clone <repository-url>
-cd SoftwareArchitecture
+cd Software-Architecture-Lab
 
-# 2. Elegir una arquitectura (ejemplo: Clean Architecture)
+# 2. Choose an architecture (example: Clean Architecture)
 cd src/CleanArchitecture/API
 
-# 3. Restaurar dependencias
+# 3. Restore dependencies
 dotnet restore
 
-# 4. Configurar connection string en appsettings.Development.json
+# 4. Configure connection string in appsettings.Development.json
 {
   "ConnectionStrings": {
     "DefaultConnection": "Server=localhost;Database=CleanArchDB;User Id=sa;Password=YourPassword123;TrustServerCertificate=True"
   }
 }
 
-# 5. Aplicar migraciones
+# 5. Apply migrations
 dotnet ef database update --project ../Infrastructure
 
-# 6. Ejecutar la aplicación
+# 6. Run the application
 dotnet run
 
-# La API estará en https://localhost:7001
+# The API will be at https://localhost:7001
 ```
 
-### Opción 3: Ejecutar en Kubernetes
+### Option 3: Run in Kubernetes
 
 ```bash
-# 1. Construir imágenes Docker
+# 1. Build Docker images
 docker build -t clean-architecture-api:latest -f docker/CleanArchitecture.Dockerfile .
 
-# 2. Aplicar manifiestos de Kubernetes
+# 2. Apply Kubernetes manifests
 kubectl apply -f kubernetes/clean-architecture/
 
-# 3. Verificar pods
+# 3. Verify pods
 kubectl get pods
 
-# 4. Acceder a la API
+# 4. Access the API
 kubectl port-forward svc/clean-architecture-api 5000:80
 ```
 
-##  Guías de Arquitectura
+## Architecture Guides
 
 ### [Clean Architecture](./docs/clean-architecture/README.md)
--  Ventajas y desventajas
--  Comparación con otras arquitecturas
--  Casos de uso reales
--  Mejores prácticas
--  Implementación paso a paso
+- Pros and cons
+- Comparison with other architectures
+- Real-world use cases
+- Best practices
+- Step-by-step implementation
 
 ### [Domain-Driven Design](./docs/ddd/README.md)
--  Patrones tácticos (Entities, Value Objects, Aggregates)
-- ️ Patrones estratégicos (Bounded Contexts, Context Mapping)
--  Ubiquitous Language
-- ️ Arquitectura hexagonal
--  Ejemplos de e-commerce
+- Tactical patterns (Entities, Value Objects, Aggregates)
+- Strategic patterns (Bounded Contexts, Context Mapping)
+- Ubiquitous Language
+- Hexagonal architecture
+- E-commerce examples
 
 ### [Event-Driven Architecture](./docs/eda/README.md)
--  Event Sourcing
--  CQRS (Command Query Responsibility Segregation)
--  Mensajería con RabbitMQ
--  Sagas y orquestación
--  Event Storming
+- Event Sourcing
+- CQRS (Command Query Responsibility Segregation)
+- Messaging with RabbitMQ
+- Sagas and orchestration
+- Event Storming
 
-##  Seguridad
+## Security
 
-### Autenticación JWT
+### JWT Authentication
 ```csharp
-// Configuración básica incluida
+// Basic configuration included
 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options => { /* ... */ });
 ```
 
 ### Rate Limiting
 ```csharp
-// Protección contra abuso
+// Protection against abuse
 services.AddRateLimiter(options => {
     options.AddFixedWindowLimiter("fixed", options => {
         options.Window = TimeSpan.FromMinutes(1);
@@ -277,65 +277,65 @@ services.AddRateLimiter(options => {
 ```
 
 ### Keycloak Integration
-Ver documentación completa en [docs/authentication/keycloak.md](./docs/authentication/keycloak.md)
+See full documentation in [docs/authentication/keycloak.md](./docs/authentication/keycloak.md)
 
-##  Testing
+## Testing
 
 ```bash
-# Ejecutar todos los tests
+# Run all tests
 dotnet test
 
-# Ejecutar con cobertura
+# Run with coverage
 dotnet test /p:CollectCoverage=true /p:CoverageReportFormat=opencover
 
-# Tests de integración (requiere Docker)
+# Integration tests (requires Docker)
 dotnet test --filter Category=Integration
 ```
 
-##  Comparación de Arquitecturas
+## Architecture Comparison
 
-| Característica | Clean Architecture | DDD | EDA |
-|---------------|-------------------|-----|-----|
-| **Complejidad** | Media | Alta | Alta |
-| **Curva de aprendizaje** | Media | Alta | Alta |
-| **Escalabilidad** | Alta | Alta | Muy Alta |
-| **Testabilidad** | Muy Alta | Alta | Media |
-| **Mantenibilidad** | Muy Alta | Alta | Media |
-| **Performance** | Alta | Alta | Muy Alta |
-| **Mejor para** | APIs, Microservicios | Dominios complejos | Sistemas distribuidos |
-| **Tamaño de equipo** | Pequeño-Grande | Mediano-Grande | Grande |
+| Feature | Clean Architecture | DDD | EDA |
+|---------|-------------------|-----|-----|
+| **Complexity** | Medium | High | High |
+| **Learning Curve** | Medium | High | High |
+| **Scalability** | High | High | Very High |
+| **Testability** | Very High | High | Medium |
+| **Maintainability**| Very High | High | Medium |
+| **Performance** | High | High | Very High |
+| **Best For** | APIs, Microservices | Complex domains | Distributed systems |
+| **Team Size** | Small-Large | Medium-Large | Large |
 
-##  Recursos de Aprendizaje
+## Learning Resources
 
-### Libros Recomendados
+### Recommended Books
 - **Clean Architecture** - Robert C. Martin (Uncle Bob)
 - **Domain-Driven Design** - Eric Evans
 - **Implementing Domain-Driven Design** - Vaughn Vernon
 - **Building Event-Driven Microservices** - Adam Bellemare
 
-### Principios SOLID
-Ver guía completa en [docs/principles/SOLID.md](./docs/principles/SOLID.md)
+### SOLID Principles
+See full guide in [docs/principles/SOLID.md](./docs/principles/SOLID.md)
 
 ### Clean Code
-Ver guía completa en [docs/principles/CleanCode.md](./docs/principles/CleanCode.md)
+See full guide in [docs/principles/CleanCode.md](./docs/principles/CleanCode.md)
 
-##  Contribuciones
+## Contributing
 
-Las contribuciones son bienvenidas! Por favor:
-1. Fork el repositorio
-2. Crea una rama con tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-##  Licencia
+## License
 
-Este proyecto está bajo la licencia MIT. Ver `LICENSE` para más detalles.
+This project is licensed under the MIT License. See `LICENSE` for more details.
 
-##  Contacto
+## Contact
 
-Para preguntas, sugerencias o problemas, por favor abre un issue en GitHub.
+For questions, suggestions or issues, please open an issue on GitHub.
 
 ---
 
-**Happy Coding!** 
+**Happy Coding!**
