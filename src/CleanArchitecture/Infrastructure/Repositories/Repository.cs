@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using CleanArchitecture.Domain.Common;
 using CleanArchitecture.Domain.Interfaces;
 using CleanArchitecture.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,17 @@ public class Repository<T> : IRepository<T> where T : class
     public virtual async Task<T?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
         return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
+    }
+
+    public virtual async Task<T?> GetByUidAsync(Guid uid, CancellationToken cancellationToken = default)
+    {
+        if (typeof(BaseEntity).IsAssignableFrom(typeof(T)))
+        {
+            return await _dbSet.Cast<BaseEntity>()
+                .FirstOrDefaultAsync(e => e.Uid == uid, cancellationToken) as T;
+        }
+
+        return null;
     }
 
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)

@@ -16,6 +16,13 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 
         builder.HasKey(c => c.Id);
 
+        builder.Property(c => c.Uid)
+            .IsRequired()
+            .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+        builder.HasIndex(c => c.Uid)
+            .IsUnique();
+
         builder.Property(c => c.FirstName)
             .IsRequired()
             .HasMaxLength(50);
@@ -64,6 +71,13 @@ public class AddressConfiguration : IEntityTypeConfiguration<Address>
         builder.ToTable("Addresses");
 
         builder.HasKey(a => a.Id);
+
+        builder.Property(a => a.Uid)
+            .IsRequired()
+            .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+        builder.HasIndex(a => a.Uid)
+            .IsUnique();
 
         builder.Property(a => a.Street)
             .IsRequired()

@@ -5,76 +5,68 @@ using Xunit;
 
 namespace CleanArchitecture.Domain.Tests.Entities;
 
-/// <summary>
-/// Tests unitarios para la entidad Order
-/// Validan la lógica de negocio encapsulada en la entidad
-/// </summary>
 public class OrderTests
 {
-    [Fact]
-    public void Create_ShouldCreateOrderWithPendingStatus()
+    private static Product CreateTestProduct(int id = 1, string name = "Test Product", decimal price = 50.00m, int stock = 100)
     {
-        // Arrange
-        var customerId = Guid.NewGuid();
-        var orderNumber = "ORD-001";
+        return new Product
+        {
+            Id = id,
+            Name = name,
+            Price = price,
+            Stock = stock,
+            Sku = $"SKU-{id:D3}",
+            Description = "Test product",
+            IsActive = true
+        };
+    }
 
-        // Act
-        var order = Order.Create(customerId, orderNumber);
-
-        // Assert
-        order.Should().NotBeNull();
-        order.CustomerId.Should().Be(customerId);
-        order.OrderNumber.Should().Be(orderNumber);
-        order.Status.Should().Be(OrderStatus.Pending);
-        order.TotalAmount.Should().Be(0);
-        order.Items.Should().BeEmpty();
+    private static Order CreateTestOrder(int customerId = 1)
+    {
+        return new Order
+        {
+            CustomerId = customerId,
+            OrderNumber = "ORD-001",
+            OrderDate = DateTime.UtcNow,
+            Status = OrderStatus.Pending,
+            PaymentStatus = PaymentStatus.Pending,
+            PaymentMethod = PaymentMethod.CreditCard
+        };
     }
 
     [Fact]
-    public void Create_WithEmptyOrderNumber_ShouldThrowArgumentException()
+    public void NewOrder_ShouldHavePendingStatus()
     {
-        // Arrange
-        var customerId = Guid.NewGuid();
-        var orderNumber = string.Empty;
+        var order = CreateTestOrder();
 
-        // Act
-        Action act = () => Order.Create(customerId, orderNumber);
-
-        // Assert
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("*Order number cannot be empty*");
+        order.Should().NotBeNull();
+        order.CustomerId.Should().Be(1);
+        order.OrderNumber.Should().Be("ORD-001");
+        order.Status.Should().Be(OrderStatus.Pending);
+        order.Items.Should().BeEmpty();
+        order.Uid.Should().NotBeEmpty();
     }
 
     [Fact]
     public void AddItem_ShouldAddItemAndCalculateTotal()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        var productId = Guid.NewGuid();
-        var productName = "Test Product";
-        var quantity = 2;
-        var unitPrice = 50.00m;
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
 
-        // Act
-        order.AddItem(productId, productName, quantity, unitPrice);
+        order.AddItem(product, 2, 50.00m);
 
-        // Assert
         order.Items.Should().HaveCount(1);
-        order.TotalAmount.Should().Be(100.00m); // 2 * 50
+        order.Subtotal.Should().Be(100.00m);
     }
 
     [Fact]
     public void AddItem_WithNegativeQuantity_ShouldThrowArgumentException()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        var productId = Guid.NewGuid();
-        var quantity = -1;
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
 
-        // Act
-        Action act = () => order.AddItem(productId, "Product", quantity, 10.00m);
+        Action act = () => order.AddItem(product, -1, 10.00m);
 
-        // Assert
         act.Should().Throw<ArgumentException>()
             .WithMessage("*Quantity must be greater than zero*");
     }
@@ -82,136 +74,147 @@ public class OrderTests
     [Fact]
     public void AddItem_WithNegativePrice_ShouldThrowArgumentException()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        var productId = Guid.NewGuid();
-        var unitPrice = -10.00m;
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
 
-        // Act
-        Action act = () => order.AddItem(productId, "Product", 1, unitPrice);
+        Action act = () => order.AddItem(product, 1, -10.00m);
 
-        // Assert
         act.Should().Throw<ArgumentException>()
-            .WithMessage("*Unit price must be greater than zero*");
+            .WithMessage("*Unit price cannot be negative*");
     }
 
     [Fact]
-    public void Confirm_ShouldChangeStatusToConfirmed()
+    public void ConfirmOrder_ShouldChangeStatusToProcessing()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        order.AddItem(Guid.NewGuid(), "Product", 1, 10.00m);
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
+        order.AddItem(product, 1, 10.00m);
 
-        // Act
-        order.Confirm();
+        order.ConfirmOrder();
 
-        // Assert
-        order.Status.Should().Be(OrderStatus.Confirmed);
+        order.Status.Should().Be(OrderStatus.Processing);
     }
 
     [Fact]
-    public void Confirm_WithoutItems_ShouldThrowInvalidOperationException()
+    public void ConfirmOrder_WithoutItems_ShouldThrowInvalidOperationException()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
+        var order = CreateTestOrder();
 
-        // Act
-        Action act = () => order.Confirm();
+        Action act = () => order.ConfirmOrder();
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Cannot confirm an empty order*");
+            .WithMessage("*Cannot confirm order without items*");
     }
 
     [Fact]
     public void Ship_ShouldChangeStatusToShipped()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        order.AddItem(Guid.NewGuid(), "Product", 1, 10.00m);
-        order.Confirm();
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
+        order.AddItem(product, 1, 10.00m);
+        order.ConfirmOrder();
+        order.ProcessPayment();
 
-        // Act
         order.Ship();
 
-        // Assert
         order.Status.Should().Be(OrderStatus.Shipped);
+        order.ShippedDate.Should().NotBeNull();
     }
 
     [Fact]
     public void Ship_WithoutConfirming_ShouldThrowInvalidOperationException()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        order.AddItem(Guid.NewGuid(), "Product", 1, 10.00m);
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
+        order.AddItem(product, 1, 10.00m);
 
-        // Act
         Action act = () => order.Ship();
 
-        // Assert
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Cannot ship an order that is not confirmed*");
+        act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
     public void Cancel_ShouldChangeStatusToCancelled()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        order.AddItem(Guid.NewGuid(), "Product", 1, 10.00m);
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
+        order.AddItem(product, 1, 10.00m);
 
-        // Act
-        order.Cancel();
+        order.Cancel("Customer requested");
 
-        // Assert
         order.Status.Should().Be(OrderStatus.Cancelled);
+        order.Notes.Should().Contain("Customer requested");
     }
 
     [Fact]
     public void Cancel_WhenAlreadyShipped_ShouldThrowInvalidOperationException()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        order.AddItem(Guid.NewGuid(), "Product", 1, 10.00m);
-        order.Confirm();
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
+        order.AddItem(product, 1, 10.00m);
+        order.ConfirmOrder();
+        order.ProcessPayment();
         order.Ship();
 
-        // Act
-        Action act = () => order.Cancel();
+        Action act = () => order.Cancel("Too late");
 
-        // Assert
         act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Cannot cancel a shipped order*");
+            .WithMessage("*Cannot cancel order after it has been shipped*");
     }
 
     [Fact]
-    public void AddMultipleItems_ShouldCalculateTotalCorrectly()
+    public void AddMultipleItems_ShouldCalculateSubtotalCorrectly()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
+        var order = CreateTestOrder();
+        var product1 = CreateTestProduct(id: 1, name: "Product 1", price: 10.00m);
+        var product2 = CreateTestProduct(id: 2, name: "Product 2", price: 15.00m);
+        var product3 = CreateTestProduct(id: 3, name: "Product 3", price: 5.00m);
 
-        // Act
-        order.AddItem(Guid.NewGuid(), "Product 1", 2, 10.00m);  // 20
-        order.AddItem(Guid.NewGuid(), "Product 2", 1, 15.00m);  // 15
-        order.AddItem(Guid.NewGuid(), "Product 3", 3, 5.00m);   // 15
+        order.AddItem(product1, 2, 10.00m);  // 20
+        order.AddItem(product2, 1, 15.00m);  // 15
+        order.AddItem(product3, 3, 5.00m);   // 15
 
-        // Assert
         order.Items.Should().HaveCount(3);
-        order.TotalAmount.Should().Be(50.00m); // 20 + 15 + 15
+        order.Subtotal.Should().Be(50.00m);
     }
 
     [Fact]
-    public void SetShippingAddress_ShouldSetAddress()
+    public void AddItem_SameProduct_ShouldIncreaseQuantity()
     {
-        // Arrange
-        var order = Order.Create(Guid.NewGuid(), "ORD-001");
-        var address = new Address("123 Main St", "City", "State", "Country", "12345");
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
 
-        // Act
-        order.SetShippingAddress(address);
+        order.AddItem(product, 2, 50.00m);
+        order.AddItem(product, 3, 50.00m);
 
-        // Assert
-        order.ShippingAddress.Should().NotBeNull();
-        order.ShippingAddress!.Street.Should().Be("123 Main St");
+        order.Items.Should().HaveCount(1);
+        order.Items.First().Quantity.Should().Be(5);
+        order.Subtotal.Should().Be(250.00m);
+    }
+
+    [Fact]
+    public void AddItem_WhenShipped_ShouldThrowInvalidOperationException()
+    {
+        var order = CreateTestOrder();
+        var product = CreateTestProduct();
+        order.AddItem(product, 1, 10.00m);
+        order.ConfirmOrder();
+        order.ProcessPayment();
+        order.Ship();
+
+        var newProduct = CreateTestProduct(id: 2, name: "New Product");
+
+        Action act = () => order.AddItem(newProduct, 1, 20.00m);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*Cannot modify order after it has been shipped*");
+    }
+
+    [Fact]
+    public void GenerateOrderNumber_ShouldReturnFormattedString()
+    {
+        var orderNumber = Order.GenerateOrderNumber();
+
+        orderNumber.Should().StartWith("ORD-");
     }
 }

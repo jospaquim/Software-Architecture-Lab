@@ -5,31 +5,25 @@ namespace CleanArchitecture.Domain.Entities.Auth;
 /// </summary>
 public class UserRole
 {
-    public Guid UserId { get; private set; }
+    public int UserId { get; private set; }
     public User User { get; private set; } = null!;
 
-    public Guid RoleId { get; private set; }
+    public int RoleId { get; private set; }
     public Role Role { get; private set; } = null!;
 
     public DateTime AssignedAt { get; private set; }
 
     private UserRole() { } // Para EF Core
 
-    private UserRole(Guid userId, Guid roleId)
+    private UserRole(int userId, int roleId)
     {
         UserId = userId;
         RoleId = roleId;
         AssignedAt = DateTime.UtcNow;
     }
 
-    public static UserRole Create(Guid userId, Guid roleId)
+    public static UserRole Create(int userId, int roleId)
     {
-        if (userId == Guid.Empty)
-            throw new ArgumentException("UserId cannot be empty", nameof(userId));
-
-        if (roleId == Guid.Empty)
-            throw new ArgumentException("RoleId cannot be empty", nameof(roleId));
-
         return new UserRole(userId, roleId);
     }
 }

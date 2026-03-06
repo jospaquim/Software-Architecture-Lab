@@ -177,7 +177,7 @@ public class User : BaseEntity
     /// <summary>
     /// Remover rol del usuario
     /// </summary>
-    public void RemoveRole(Guid roleId)
+    public void RemoveRole(int roleId)
     {
         var userRole = _userRoles.FirstOrDefault(ur => ur.RoleId == roleId);
         if (userRole == null)

@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using CleanArchitecture.API.Middleware;
 using CleanArchitecture.Application.Mapping;
+using Mapster;
 using CleanArchitecture.Infrastructure;
 using CleanArchitecture.Infrastructure.Resilience;
 using CleanArchitecture.Infrastructure.ExternalServices;
@@ -15,26 +16,52 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Polly;
+using Microsoft.FeatureManagement;
+using Serilog.Sinks.Grafana.Loki;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
+var lokiUrl = builder.Configuration["Serilog:LokiUrl"];
+if (string.IsNullOrWhiteSpace(lokiUrl))
+    throw new InvalidOperationException("CRITICAL: Serilog:LokiUrl is missing or empty. Stop the idiotic blathering and configure it.");
+
+var appName = builder.Configuration["Serilog:AppName"];
+if (string.IsNullOrWhiteSpace(appName))
+    throw new InvalidOperationException("CRITICAL: Serilog:AppName is missing or empty. Configure it in appsettings.json.");
+
+var appEnvironment = builder.Configuration["Serilog:Environment"];
+if (string.IsNullOrWhiteSpace(appEnvironment))
+    throw new InvalidOperationException("CRITICAL: Serilog:Environment is missing or empty. Configure it in appsettings.json.");
+
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithEnvironmentName()
+    .Enrich.WithProperty("Application", appName)
     .WriteTo.Console()
     .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.GrafanaLoki(lokiUrl, labels: new[]
+    {
+        new Serilog.Sinks.Grafana.Loki.LokiLabel { Key = "app", Value = appName },
+        new Serilog.Sinks.Grafana.Loki.LokiLabel { Key = "environment", Value = appEnvironment }
+    })
     .CreateLogger();
 
 builder.Host.UseSerilog();
 
 // Configure OpenTelemetry
-var serviceName = "CleanArchitecture.API";
-var serviceVersion = "1.0.0";
+var otelServiceName = builder.Configuration["OpenTelemetry:ServiceName"]
+    ?? throw new InvalidOperationException("CRITICAL: OpenTelemetry:ServiceName is missing. Configure it in appsettings.json.");
+var otelServiceVersion = builder.Configuration["OpenTelemetry:ServiceVersion"]
+    ?? throw new InvalidOperationException("CRITICAL: OpenTelemetry:ServiceVersion is missing. Configure it in appsettings.json.");
+var otelEndpoint = builder.Configuration["OpenTelemetry:OtlpEndpoint"]
+    ?? throw new InvalidOperationException("CRITICAL: OpenTelemetry:OtlpEndpoint is missing. Configure it in appsettings.json.");
 
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource
-        .AddService(serviceName: serviceName, serviceVersion: serviceVersion)
+        .AddService(serviceName: otelServiceName, serviceVersion: otelServiceVersion)
         .AddAttributes(new Dictionary<string, object>
         {
             ["deployment.environment"] = builder.Environment.EnvironmentName,
@@ -63,14 +90,10 @@ builder.Services.AddOpenTelemetry()
         .AddSqlClientInstrumentation(options =>
         {
             options.RecordException = true;
-            options.SetDbStatementForText = true;
-            options.SetDbStatementForStoredProcedure = true;
         })
         .AddOtlpExporter(options =>
         {
-            // Jaeger endpoint (OTLP)
-            options.Endpoint = new Uri(builder.Configuration["OpenTelemetry:OtlpEndpoint"]
-                ?? "http://localhost:4317");
+            options.Endpoint = new Uri(otelEndpoint);
         }));
 
 // Add services to the container
@@ -92,7 +115,7 @@ builder.Services.AddResponseCompression(options =>
     options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
 });
 
-// Output Caching (.NET 8)
+// Output Caching
 builder.Services.AddOutputCache(options =>
 {
     options.AddBasePolicy(builder => builder.Expire(TimeSpan.FromSeconds(60)));
@@ -105,8 +128,8 @@ builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(CleanArchitecture.Application.Common.Result).Assembly);
 });
 
-// Add AutoMapper
-builder.Services.AddAutoMapper(typeof(MappingProfile));
+// Add Mapster
+MappingConfig.ConfigureGlobalMappings();
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssembly(typeof(CleanArchitecture.Application.Common.Result).Assembly);
@@ -119,7 +142,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 // ============================================
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";
+    options.Configuration = builder.Configuration.GetConnectionString("Redis")
+        ?? throw new InvalidOperationException("CRITICAL: ConnectionStrings:Redis is missing. Configure it in appsettings.json.");
     options.InstanceName = "CleanArchitecture:";
 });
 builder.Services.AddScoped<CleanArchitecture.Infrastructure.Caching.ICacheService,
@@ -131,7 +155,8 @@ builder.Services.AddScoped<CleanArchitecture.Infrastructure.Caching.ICacheServic
 // Configure HttpClient with Polly resilience policies
 builder.Services.AddHttpClient<IExternalApiClient, ExternalApiClient>(client =>
 {
-    client.BaseAddress = new Uri(builder.Configuration["ExternalApi:BaseUrl"] ?? "https://api.example.com");
+    client.BaseAddress = new Uri(builder.Configuration["ExternalApi:BaseUrl"]
+        ?? throw new InvalidOperationException("CRITICAL: ExternalApi:BaseUrl is missing. Configure it in appsettings.json."));
     client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.Add("User-Agent", "CleanArchitecture-API/1.0");
 })
@@ -164,6 +189,13 @@ builder.Services.AddHttpClient("ResilientClient")
     });
 
 // Add Authentication - JWT
+var jwtSecretKey = builder.Configuration["Jwt:SecretKey"]
+    ?? throw new InvalidOperationException("CRITICAL: Jwt:SecretKey is missing. Configure it in appsettings.json.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"]
+    ?? throw new InvalidOperationException("CRITICAL: Jwt:Issuer is missing. Configure it in appsettings.json.");
+var jwtAudience = builder.Configuration["Jwt:Audience"]
+    ?? throw new InvalidOperationException("CRITICAL: Jwt:Audience is missing. Configure it in appsettings.json.");
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -177,10 +209,10 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured")))
+            Encoding.UTF8.GetBytes(jwtSecretKey))
     };
 });
 
@@ -269,12 +301,12 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Clean Architecture API",
         Version = "v1",
-        Description = "A RESTful API built with Clean Architecture principles",
+        Description = ".NET 10 API boilerplate designed for scalability and maintainability — Clean Architecture, event-driven messaging, resilience policies, centralized logging, and container-ready infrastructure.",
         Contact = new OpenApiContact
         {
-            Name = "Your Name",
-            Email = "your.email@example.com",
-            Url = new Uri("https://github.com/yourusername")
+            Name = "jospaquim",
+            Email = "",
+            Url = new Uri("https://github.com/jospaquim")
         }
     });
 
@@ -303,10 +335,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 
-    // Include XML comments (optional)
-    // var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    // var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    // c.IncludeXmlComments(xmlPath);
 });
 
 var app = builder.Build();
@@ -330,6 +358,9 @@ else
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Clean Architecture API v1");
     });
 }
+
+// Request logging (first in pipeline to capture all requests)
+app.UseSerilogRequestLogging();
 
 // Global Exception Handler Middleware
 app.UseMiddleware<ExceptionHandlingMiddleware>();
@@ -362,13 +393,10 @@ app.MapPrometheusScrapingEndpoint();
 // Map Controllers
 app.MapControllers();
 
-// Request logging
-app.UseSerilogRequestLogging();
-
 try
 {
     Log.Information("Starting Clean Architecture API");
-    app.Run();
+    await app.RunAsync();
 }
 catch (Exception ex)
 {
@@ -376,5 +404,5 @@ catch (Exception ex)
 }
 finally
 {
-    Log.CloseAndFlush();
+    await Log.CloseAndFlushAsync();
 }

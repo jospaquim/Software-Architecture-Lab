@@ -1,79 +1,85 @@
-using AutoMapper;
 using CleanArchitecture.Application.DTOs;
 using CleanArchitecture.Domain.Entities;
-using CleanArchitecture.Domain.Enums;
+using Mapster;
 
 namespace CleanArchitecture.Application.Mapping;
 
 /// <summary>
-/// AutoMapper profile for mapping between domain entities and DTOs
-/// Keeps mapping logic centralized and maintainable
+/// Mapster configuration for mapping between domain entities and DTOs
 /// </summary>
-public class MappingProfile : Profile
+public static class MappingConfig
 {
-    public MappingProfile()
+    public static void ConfigureGlobalMappings()
     {
+        var config = TypeAdapterConfig.GlobalSettings;
+
         // Customer mappings
-        CreateMap<Customer, CustomerDto>()
-            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.GetFullName()))
-            .ForMember(dest => dest.Age, opt => opt.MapFrom(src => src.GetAge()));
+        config.NewConfig<Customer, CustomerDto>()
+            .Map(dest => dest.FullName, src => src.GetFullName())
+            .Map(dest => dest.Age, src => src.GetAge());
 
-        CreateMap<Customer, CustomerDetailsDto>()
-            .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => src.GetFullName()))
-            .ForMember(dest => dest.Age, opt => opt.MapFrom(src => src.GetAge()))
-            .ForMember(dest => dest.Addresses, opt => opt.Ignore())
-            .ForMember(dest => dest.RecentOrders, opt => opt.Ignore());
+        config.NewConfig<Customer, CustomerDetailsDto>()
+            .Map(dest => dest.FullName, src => src.GetFullName())
+            .Map(dest => dest.Age, src => src.GetAge())
+            .Ignore(dest => dest.Addresses)
+            .Ignore(dest => dest.RecentOrders);
 
-        CreateMap<CreateCustomerDto, Customer>();
-        CreateMap<UpdateCustomerDto, Customer>();
+        config.NewConfig<CreateCustomerDto, Customer>();
+        config.NewConfig<UpdateCustomerDto, Customer>();
 
         // Address mappings
-        CreateMap<Address, AddressDto>()
-            .ForMember(dest => dest.FullAddress, opt => opt.MapFrom(src => src.GetFullAddress()));
+        config.NewConfig<Address, AddressDto>()
+            .Map(dest => dest.FullAddress, src => src.GetFullAddress());
 
-        CreateMap<CreateAddressDto, Address>();
+        config.NewConfig<CreateAddressDto, Address>();
 
         // Product mappings
-        CreateMap<Product, ProductDto>()
-            .ForMember(dest => dest.IsInStock, opt => opt.MapFrom(src => src.IsInStock()))
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name));
+        config.NewConfig<Product, ProductDto>()
+            .Map(dest => dest.IsInStock, src => src.IsInStock())
+            .Map(dest => dest.CategoryUid, src => src.Category.Uid)
+            .Map(dest => dest.CategoryName, src => src.Category.Name);
 
-        CreateMap<Product, ProductDetailsDto>()
-            .ForMember(dest => dest.IsInStock, opt => opt.MapFrom(src => src.IsInStock()))
-            .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category.Name));
+        config.NewConfig<Product, ProductDetailsDto>()
+            .Map(dest => dest.IsInStock, src => src.IsInStock())
+            .Map(dest => dest.CategoryUid, src => src.Category.Uid)
+            .Map(dest => dest.CategoryName, src => src.Category.Name);
 
-        CreateMap<CreateProductDto, Product>();
-        CreateMap<UpdateProductDto, Product>();
+        config.NewConfig<CreateProductDto, Product>();
+        config.NewConfig<UpdateProductDto, Product>();
 
         // Category mappings
-        CreateMap<Category, CategoryDto>()
-            .ForMember(dest => dest.ProductCount, opt => opt.MapFrom(src => src.Products.Count));
+        config.NewConfig<Category, CategoryDto>()
+            .Map(dest => dest.ProductCount, src => src.Products.Count);
 
-        CreateMap<CreateCategoryDto, Category>();
+        config.NewConfig<CreateCategoryDto, Category>();
 
         // Order mappings
-        CreateMap<Order, OrderDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.PaymentStatus, opt => opt.MapFrom(src => src.PaymentStatus.ToString()))
-            .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod.ToString()))
-            .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer.GetFullName()))
-            .ForMember(dest => dest.ItemCount, opt => opt.MapFrom(src => src.Items.Count));
+        config.NewConfig<Order, OrderDto>()
+            .Map(dest => dest.Status, src => src.Status.ToString())
+            .Map(dest => dest.PaymentStatus, src => src.PaymentStatus.ToString())
+            .Map(dest => dest.PaymentMethod, src => src.PaymentMethod.ToString())
+            .Map(dest => dest.CustomerUid, src => src.Customer.Uid)
+            .Map(dest => dest.CustomerName, src => src.Customer.GetFullName())
+            .Map(dest => dest.ItemCount, src => src.Items.Count);
 
-        CreateMap<Order, OrderDetailsDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.PaymentStatus, opt => opt.MapFrom(src => src.PaymentStatus.ToString()))
-            .ForMember(dest => dest.PaymentMethod, opt => opt.MapFrom(src => src.PaymentMethod.ToString()))
-            .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer.GetFullName()))
-            .ForMember(dest => dest.ItemCount, opt => opt.MapFrom(src => src.Items.Count));
+        config.NewConfig<Order, OrderDetailsDto>()
+            .Map(dest => dest.Status, src => src.Status.ToString())
+            .Map(dest => dest.PaymentStatus, src => src.PaymentStatus.ToString())
+            .Map(dest => dest.PaymentMethod, src => src.PaymentMethod.ToString())
+            .Map(dest => dest.CustomerUid, src => src.Customer.Uid)
+            .Map(dest => dest.CustomerName, src => src.Customer.GetFullName())
+            .Map(dest => dest.ItemCount, src => src.Items.Count);
 
-        CreateMap<Order, OrderSummaryDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.ItemCount, opt => opt.MapFrom(src => src.Items.Count));
+        config.NewConfig<Order, OrderSummaryDto>()
+            .Map(dest => dest.Status, src => src.Status.ToString())
+            .Map(dest => dest.ItemCount, src => src.Items.Count);
 
-        CreateMap<OrderItem, OrderItemDto>()
-            .ForMember(dest => dest.TotalPrice, opt => opt.MapFrom(src => src.GetTotalPrice()));
+        config.NewConfig<OrderItem, OrderItemDto>()
+            .Map(dest => dest.ProductUid, src => src.Product.Uid)
+            .Map(dest => dest.TotalPrice, src => src.GetTotalPrice());
 
-        CreateMap<CreateOrderDto, Order>();
-        CreateMap<CreateOrderItemDto, OrderItem>();
+        config.NewConfig<CreateOrderDto, Order>();
+        config.NewConfig<CreateOrderItemDto, OrderItem>();
+
     }
 }

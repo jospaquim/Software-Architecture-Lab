@@ -14,16 +14,22 @@ services:
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=CleanArchitectureDB;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;MultipleActiveResultSets=true
       - ConnectionStrings__Redis=redis:6379
+      - Serilog__LokiUrl=http://loki:3100
       - DatabaseProvider=SqlServer
       - Jwt__SecretKey=YourSuperSecretKeyThatIsAtLeast32CharactersLong!
       - Jwt__Issuer=CleanArchitectureAPI
       - Jwt__Audience=CleanArchitectureClient
       - Jwt__ExpiryMinutes=60
       - Jwt__RefreshExpiryDays=7
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
     depends_on:
       sqlserver:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - cleanarch-network
@@ -96,6 +102,62 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes
 
+  # RabbitMQ (Message Broker)
+  rabbitmq:
+    image: rabbitmq:4.1-management-alpine
+    container_name: cleanarchitecture-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - cleanarch-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Grafana Loki (Log Aggregation)
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: cleanarchitecture-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+    networks:
+      - cleanarch-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --output-document=/dev/null http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Grafana (Dashboards & Visualization)
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: cleanarchitecture-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      loki:
+        condition: service_healthy
+    networks:
+      - cleanarch-network
+    restart: unless-stopped
+
   # pgAdmin (PostgreSQL Admin UI - Optional)
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -123,4 +185,10 @@ volumes:
   postgres-data:
     driver: local
   redis-data:
+    driver: local
+  loki-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  grafana-data:
     driver: local

@@ -89,7 +89,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Re
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var response = new RegisterResponse(
-                user.Id,
+                user.Uid,
                 user.Username,
                 user.Email,
                 user.FirstName,

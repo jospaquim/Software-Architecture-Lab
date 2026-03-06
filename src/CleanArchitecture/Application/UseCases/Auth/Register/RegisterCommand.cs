@@ -15,7 +15,7 @@ public record RegisterCommand(
 ) : IRequest<Result<RegisterResponse>>;
 
 public record RegisterResponse(
-    Guid UserId,
+    Guid Uid,
     string Username,
     string Email,
     string FirstName,

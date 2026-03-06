@@ -12,6 +12,13 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasKey(p => p.Id);
 
+        builder.Property(p => p.Uid)
+            .IsRequired()
+            .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+        builder.HasIndex(p => p.Uid)
+            .IsUnique();
+
         builder.Property(p => p.Name)
             .IsRequired()
             .HasMaxLength(200);
@@ -63,6 +70,13 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.ToTable("Categories");
 
         builder.HasKey(c => c.Id);
+
+        builder.Property(c => c.Uid)
+            .IsRequired()
+            .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+        builder.HasIndex(c => c.Uid)
+            .IsUnique();
 
         builder.Property(c => c.Name)
             .IsRequired()

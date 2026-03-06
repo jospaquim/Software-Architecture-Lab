@@ -1,6 +1,10 @@
+using CleanArchitecture.Application.Common;
 using CleanArchitecture.Domain.Interfaces;
+using CleanArchitecture.Infrastructure.Auth;
+using CleanArchitecture.Infrastructure.Messaging.Consumers;
 using CleanArchitecture.Infrastructure.Persistence;
 using CleanArchitecture.Infrastructure.Repositories;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,12 +21,15 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Database Context - SQL Server
+        // Database Context
+        var databaseProvider = configuration.GetValue<string>("DatabaseProvider")
+            ?? throw new InvalidOperationException("CRITICAL: DatabaseProvider is missing. Configure it in appsettings.json (SqlServer or PostgreSQL).");
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("CRITICAL: ConnectionStrings:DefaultConnection is missing. Configure it in appsettings.json.");
+
         services.AddDbContext<ApplicationDbContext>(options =>
         {
-            var connectionString = configuration.GetConnectionString("DefaultConnection");
-
-            if (configuration.GetValue<string>("DatabaseProvider") == "PostgreSQL")
+            if (databaseProvider == "PostgreSQL")
             {
                 options.UseNpgsql(
                     connectionString,
@@ -52,6 +59,38 @@ public static class DependencyInjection
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IAddressRepository, AddressRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+
+        // Auth services
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+        services.AddScoped<IPasswordHasher, PasswordHasher>();
+
+        // MassTransit + RabbitMQ
+        var rabbitHost = configuration["RabbitMQ:Host"]
+            ?? throw new InvalidOperationException("CRITICAL: RabbitMQ:Host is missing. Configure it in appsettings.json.");
+        var rabbitUser = configuration["RabbitMQ:Username"]
+            ?? throw new InvalidOperationException("CRITICAL: RabbitMQ:Username is missing. Configure it in appsettings.json.");
+        var rabbitPass = configuration["RabbitMQ:Password"]
+            ?? throw new InvalidOperationException("CRITICAL: RabbitMQ:Password is missing. Configure it in appsettings.json.");
+
+        services.AddMassTransit(bus =>
+        {
+            bus.AddConsumer<CustomerCreatedConsumer>();
+            bus.AddConsumer<OrderCreatedConsumer>();
+            bus.AddConsumer<OrderStatusChangedConsumer>();
+
+            bus.UsingRabbitMq((context, cfg) =>
+            {
+                cfg.Host(rabbitHost, "/", h =>
+                {
+                    h.Username(rabbitUser);
+                    h.Password(rabbitPass);
+                });
+
+                cfg.ConfigureEndpoints(context);
+            });
+        });
 
         return services;
     }

@@ -12,7 +12,7 @@ public record LoginCommand(
 ) : IRequest<Result<LoginResponse>>;
 
 public record LoginResponse(
-    Guid UserId,
+    Guid Uid,
     string Username,
     string Email,
     string FirstName,

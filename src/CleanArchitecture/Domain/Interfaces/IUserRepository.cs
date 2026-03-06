@@ -20,7 +20,7 @@ public interface IUserRepository : IRepository<User>
     /// <summary>
     /// Get user with roles
     /// </summary>
-    Task<User?> GetWithRolesAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<User?> GetWithRolesAsync(int id, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Check if username exists

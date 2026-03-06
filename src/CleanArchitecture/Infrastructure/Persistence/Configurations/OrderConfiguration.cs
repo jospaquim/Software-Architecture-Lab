@@ -13,6 +13,13 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.HasKey(o => o.Id);
 
+        builder.Property(o => o.Uid)
+            .IsRequired()
+            .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+        builder.HasIndex(o => o.Uid)
+            .IsUnique();
+
         builder.Property(o => o.OrderNumber)
             .IsRequired()
             .HasMaxLength(50);
@@ -85,6 +92,13 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.ToTable("OrderItems");
 
         builder.HasKey(oi => oi.Id);
+
+        builder.Property(oi => oi.Uid)
+            .IsRequired()
+            .HasDefaultValueSql("NEWSEQUENTIALID()");
+
+        builder.HasIndex(oi => oi.Uid)
+            .IsUnique();
 
         builder.Property(oi => oi.ProductName)
             .IsRequired()

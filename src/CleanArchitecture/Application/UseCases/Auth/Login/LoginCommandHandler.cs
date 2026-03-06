@@ -82,7 +82,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<LoginRes
             _logger.LogInformation("Login successful for user: {UserId}", user.Id);
 
             var response = new LoginResponse(
-                user.Id,
+                user.Uid,
                 user.Username,
                 user.Email,
                 user.FirstName,
